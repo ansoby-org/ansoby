@@ -212,6 +212,8 @@ export class ChigasakiClient {
     
     let foundTables = false;
     let foundValidTimeHeaders = false;
+    let totalDataCells = 0;
+    let recognizedCells = 0;
     
     for (const tableMatch of tableMatches) {
       foundTables = true;
@@ -270,6 +272,8 @@ export class ChigasakiClient {
             const timeIndex = i - startIndex;
             const time = timeHeaders[timeIndex];
             
+            totalDataCells++;
+            
             // 背景色を取得
             const styleMatch = cell.fullCell.match(/style="[^"]*background-color:\s*([^;"]+)/i);
             const bgColor = styleMatch ? styleMatch[1].toLowerCase() : '';
@@ -286,6 +290,7 @@ export class ChigasakiClient {
             }
             
             if (status) {
+              recognizedCells++;
               availability.push({
                 facilityCode,
                 room: roomName || null,
@@ -303,6 +308,8 @@ export class ChigasakiClient {
             const cell = cells[cellIndex];
             const time = timeHeaders[cellIndex];
             
+            totalDataCells++;
+            
             const styleMatch = cell.fullCell.match(/style="[^"]*background-color:\s*([^;"]+)/i);
             const bgColor = styleMatch ? styleMatch[1].toLowerCase() : '';
             
@@ -317,6 +324,7 @@ export class ChigasakiClient {
             }
             
             if (status) {
+              recognizedCells++;
               availability.push({
                 facilityCode,
                 room: null,
@@ -338,6 +346,17 @@ export class ChigasakiClient {
     
     if (!foundValidTimeHeaders) {
       throw new Error('No valid time headers found in availability tables. The page structure may have changed.');
+    }
+    
+    // データセルが存在するのにステータス認識が0件の場合はエラー
+    // サイト変更で○/×/色表現が変わった可能性
+    if (totalDataCells > 0 && recognizedCells === 0) {
+      throw new Error(`Found ${totalDataCells} data cells but could not recognize any status markers (○/×/-/colors). The site's status representation may have changed.`);
+    }
+    
+    // 認識率が50%未満の場合も警告（ただしthrowはしない）
+    if (totalDataCells > 0 && recognizedCells / totalDataCells < 0.5) {
+      console.warn(`Warning: Low recognition rate (${recognizedCells}/${totalDataCells} = ${Math.round(recognizedCells / totalDataCells * 100)}%). Some cells may have unknown status markers.`);
     }
     
     // データがない場合は空結果と解釈できるかチェック

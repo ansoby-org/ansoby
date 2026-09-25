@@ -16,6 +16,7 @@
     {
       "code": "016",
       "name": "茅ヶ崎市コミュニティホール",
+      "baseDate": "2026-09-25",
       "date": "2026-09-25",
       "notifyConditions": {
         "dateFrom": null,
@@ -28,4 +29,5 @@
       }
     }
   ]
+}
 }

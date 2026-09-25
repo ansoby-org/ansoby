@@ -95,13 +95,8 @@ cp config.example.json config.json
 ### 4. 監視の実行
 
 ```bash
-# 設定ファイルベース（推奨）
+# 設定ファイルベース
 npm run run ./config.json
-
-# または環境変数ベース（シンプル版）
-export LINE_CHANNEL_ACCESS_TOKEN=your_token
-export LINE_GROUP_ID=your_group_id
-npm run monitor
 ```
 
 ## 使用例
@@ -109,8 +104,8 @@ npm run monitor
 ### 空き状況の監視とLINE通知
 
 ```bash
-# デフォルト設定で監視
-npm run monitor
+# config.jsonベースで監視
+npm run run ./config.json
 
 # 施設と日付を指定
 npm run monitor -- --facility 016 --date 2026-09-25 --days 14

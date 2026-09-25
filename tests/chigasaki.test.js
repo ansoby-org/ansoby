@@ -51,28 +51,49 @@ describe('ChigasakiClient', () => {
       }
     });
 
-    it('should generate correct POST parameters for actual measurement case', () => {
+    it('should generate correct POST parameters for actual measurement case', async () => {
       // 実測値のテスト（2026-09-25 基準日、2026-10-02 表示日）
       const client = new ChigasakiClient();
       
-      // baseDateとdateから正しいパラメータが生成されるかテスト
-      const baseDate = '2026-09-25';
-      const displayDate = '2026-10-02';
+      // _postRequestをスパイ
+      let capturedParams = null;
+      const original_postRequest = client._postRequest.bind(client);
+      client._postRequest = async function(params) {
+        capturedParams = params;
+        // モックレスポンスを返す
+        return {
+          text: async () => `
+            <div class="SelectCalendarOuter">
+              <table class="koma-table">
+                <tr><th>10</th></tr>
+                <tr><td style="background-color:#01fafa;">○</td></tr>
+              </table>
+            </div>
+          `,
+          headers: { get: () => null },
+        };
+      };
       
-      const baseDateObj = new Date(baseDate);
-      const baseYear = baseDateObj.getFullYear();
-      const baseMonth = String(baseDateObj.getMonth() + 1).padStart(2, '0');
-      const baseDay = String(baseDateObj.getDate()).padStart(2, '0');
+      // セッション初期化をスキップ
+      client.sessionInitialized = true;
       
-      const displayDateObj = new Date(displayDate);
-      const displayYear = displayDateObj.getFullYear();
-      const displayMonth = String(displayDateObj.getMonth() + 1).padStart(2, '0');
-      const displayDay = String(displayDateObj.getDate()).padStart(2, '0');
-      
-      // 期待値（実測値と一致）
-      assert.strictEqual(`${baseYear}${baseMonth}`, '202609');
-      assert.strictEqual(baseDay, '25');
-      assert.strictEqual(`${displayYear}${displayMonth}${displayDay}`, '20261002');
+      try {
+        await client.getAvailability({
+          facilityCode: '016',
+          date: '2026-10-02',
+          baseDate: '2026-09-25',
+        });
+        
+        // 実測値と一致することを確認
+        assert.strictEqual(capturedParams.UserYM, '202609');
+        assert.strictEqual(capturedParams.UseDay, '25');
+        assert.strictEqual(capturedParams.UseDate, '20261002');
+        assert.strictEqual(capturedParams.ShosetsuCode, '016');
+        assert.strictEqual(capturedParams.disp_open, '0');
+      } finally {
+        // restore
+        client._postRequest = original_postRequest;
+      }
     });
   });
 
@@ -149,6 +170,30 @@ describe('ChigasakiClient', () => {
       
       const availability = client._parseAvailabilityFromHtml(html, '016', '2026-09-25');
       assert.strictEqual(availability.length, 0);
+    });
+
+    it('should throw when data cells exist but no status is recognized', () => {
+      const client = new ChigasakiClient();
+      // データセルは存在するが、既知のステータスマーカーがない
+      const html = `
+        <div class="SelectCalendarOuter">
+          <table class="koma-table">
+            <tbody>
+              <tr><th>10</th><th>11</th></tr>
+              <tr>
+                <td>大集会室全室(500人)</td>
+                <td style="background-color:#ff0000;">?</td>
+                <td style="background-color:#00ff00;">△</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      `;
+      
+      assert.throws(
+        () => client._parseAvailabilityFromHtml(html, '016', '2026-09-25'),
+        /could not recognize any status markers/
+      );
     });
   });
 });

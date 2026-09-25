@@ -20,8 +20,14 @@ import { readFileSync } from 'fs';
 export class App {
   constructor(config) {
     this.config = config;
-    this.client = new ChigasakiClient(config.client);
-    this.storage = new RedisStorage(config.storage);
+    // clientがインスタンスとして渡されている場合はそれを使用、そうでない場合は新規作成
+    this.client = config.client && typeof config.client.getAvailability === 'function'
+      ? config.client
+      : new ChigasakiClient(config.client || {});
+    // storageも同様
+    this.storage = config.storage && typeof config.storage.load === 'function'
+      ? config.storage
+      : new RedisStorage(config.storage || {});
   }
 
   /**
@@ -41,7 +47,7 @@ export class App {
    * @returns {Promise<Object>} 実行結果
    */
   async runFacility(facilityConfig) {
-    const { code, name, date, notifyConditions } = facilityConfig;
+    const { code, name, date, baseDate, notifyConditions } = facilityConfig;
     const stateKey = `${code}:${date}`;
 
     try {
@@ -49,6 +55,7 @@ export class App {
       const current = await this.client.getAvailability({
         facilityCode: code,
         date,
+        baseDate: baseDate || date, // baseDateが指定されていない場合はdateを使用
       });
 
       // 2. 前回の状態を読み込む
@@ -153,11 +160,21 @@ export class App {
       // - LINE通知失敗
       // - ストレージ障害（read/write）
       // - API取得失敗
-      if (error.message.includes('LINE notification failed') ||
-          error.message.includes('Failed to load state') ||
-          error.message.includes('Failed to parse state') ||
-          error.message.includes('Failed to save state') ||
-          error.message.includes('Failed to fetch availability')) {
+      const failClosedErrors = [
+        'LINE notification failed',
+        'Failed to load state',
+        'Failed to parse state',
+        'Failed to save state',
+        'Failed to fetch availability',
+        'Redis connection failed',
+        'Redis Client Error',
+      ];
+      
+      const isFailClosedError = failClosedErrors.some(pattern => 
+        error.message.includes(pattern)
+      );
+      
+      if (isFailClosedError) {
         throw error;
       }
       
