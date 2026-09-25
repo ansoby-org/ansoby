@@ -54,6 +54,23 @@ npm run dev
 npm test
 ```
 
+## 使用例
+
+詳細な使用例は `examples/` ディレクトリを参照してください。
+
+### CLIツールの使用
+
+```bash
+# 施設一覧を取得
+node examples/fetch-availability.js facilities
+
+# 特定の施設の空き状況を取得
+node examples/fetch-availability.js availability <施設ID>
+
+# 施設の詳細情報を取得
+node examples/fetch-availability.js details <施設ID>
+```
+
 ## プロジェクト構造
 
 ```
@@ -87,6 +104,11 @@ ansoby/
 - JSDocでドキュメント化
 - Node.js標準のテストフレームワークを使用
 - エラーハンドリングを適切に実装
+
+## ドキュメント
+
+- [APIリファレンス](docs/API.md) - 詳細なAPI仕様
+- [茅ヶ崎市プロバイダー仕様](docs/CHIGASAKI.md) - 茅ヶ崎市の実装詳細
 
 ## ライセンス
 
