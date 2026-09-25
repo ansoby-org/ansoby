@@ -1,0 +1,57 @@
+<!-- 茅ヶ崎市公共施設予約システム - 空き状況テーブルのHTMLサンプル -->
+
+<!-- 
+このHTMLは2026年10月2日の茅ヶ崎市コミュニティホールの空き状況を表示しています。
+実際のシステムからPOSTリクエストで取得したHTMLのサンプルです。
+-->
+
+<table class="koma-table" style="margin:0 auto;">
+  <tbody>
+    <!-- ヘッダー行：時間帯を表示 -->
+    <tr>
+      <th style="width:40px;">10</th>
+      <th style="width:40px;">11</th>
+      <th style="width:40px;">12</th>
+      <th style="width:40px;">13</th>
+      <th style="width:40px;">14</th>
+      <th style="width:40px;">15</th>
+      <th style="width:40px;">16</th>
+      <th style="width:40px;">17</th>
+      <th style="width:40px;">18</th>
+      <th style="width:40px;">19</th>
+      <th style="width:40px;">20</th>
+      <th style="width:40px;">21</th>
+    </tr>
+    
+    <!-- データ行の例 -->
+    <tr>
+      <td id="01|01|01|01|02|1|2026/10/02|0" style="width:140px;background-color:#01fafa;cursor:pointer;" tabindex="0" onkeydown="elementKeydown(this,event);" onmousedown="setAgentSlot(this,event);">○</td>
+      <td id="01|01|02|1|2026/10/02|0" style="width:40px;background-color:#01fafa;" tabindex="0" onkeydown="elementKeydown(this,event);">○</td>
+      <td style="width:40px;background-color:#ffffe0;">×</td>
+      <td style="width:140px;background-color:#ffffff;">-</td>
+    </tr>
+  </tbody>
+</table>
+
+<!-- 
+セルの構造説明:
+
+1. 背景色による状態表示:
+   - #01fafa (水色) = 空きあり
+   - #ffffe0 (薄いオレンジ) = 予約済み
+   - #ffffff (白) = 受付期間外
+
+2. テキストによる状態表示:
+   - ○ = 空きあり
+   - × = 予約済み
+   - - = 受付期間外
+
+3. td要素のid属性:
+   id="01|01|01|01|02|1|2026/10/02|0"
+   このIDは予約操作用のパラメータを含んでいる可能性があります。
+
+4. インタラクティブ要素:
+   - onkeydown, onmousedown: キーボード/マウス操作のハンドラ
+   - cursor:pointer: クリック可能な状態を示す
+   - tabindex: キーボードナビゲーション対応
+-->

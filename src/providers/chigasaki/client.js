@@ -1,34 +1,52 @@
 /**
  * 茅ヶ崎市公共施設予約システム APIクライアント
  * 新システム (k7.p-kashikan.jp) 対応版
+ * 
+ * 実際のシステム調査結果に基づく実装:
+ * - JSON APIは存在せず、POSTリクエストでHTMLを返す
+ * - セッション管理（Cookie）が必要
+ * - 空き状況は背景色とテキスト（○×-）で表現
  */
 
 export class ChigasakiClient {
   constructor(config = {}) {
     this.baseUrl = config.baseUrl || 'https://k7.p-kashikan.jp/chigasaki-city';
     this.timeout = config.timeout || 30000;
+    this.sessionCookies = '';
   }
 
   /**
-   * HTTPリクエストを実行する
+   * HTTPリクエストを実行する（POSTリクエスト）
    * @private
    */
-  async _request(endpoint, options = {}) {
-    const url = `${this.baseUrl}/${endpoint}`;
+  async _postRequest(params, options = {}) {
+    const url = `${this.baseUrl}/index.php`;
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), this.timeout);
 
+    const body = new URLSearchParams(params).toString();
+
     try {
       const response = await fetch(url, {
-        ...options,
+        method: 'POST',
+        body,
         signal: controller.signal,
         headers: {
-          'User-Agent': 'ansoby/0.1.0',
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36',
+          'Referer': this.baseUrl + '/',
+          'Cookie': this.sessionCookies,
           ...options.headers,
         },
       });
 
       clearTimeout(timeoutId);
+
+      // Cookieを保存
+      const setCookie = response.headers.get('set-cookie');
+      if (setCookie) {
+        this.sessionCookies = setCookie.split(';')[0];
+      }
 
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
@@ -45,163 +63,160 @@ export class ChigasakiClient {
   }
 
   /**
-   * 施設一覧を取得する
+   * 施設一覧を取得する（実装予定）
    * @returns {Promise<Array>} 施設一覧
    */
   async getFacilities() {
-    try {
-      const response = await this._request('index.php?op=sct');
-      const html = await response.text();
-      
-      return this._parseFacilitiesFromHtml(html);
-    } catch (error) {
-      throw new Error(`Failed to fetch facilities: ${error.message}`);
-    }
+    // TODO: 実際のシステムでは施設一覧を別途取得する必要がある
+    // 現時点では既知の施設コードを返す
+    return [
+      {
+        id: '016',
+        name: '茅ヶ崎市コミュニティホール',
+        provider: 'chigasaki',
+        system: 'new',
+      },
+    ];
   }
 
   /**
    * 指定された施設の空き状況を取得する
    * @param {Object} params - 検索パラメータ
-   * @param {string} params.facilityId - 施設ID
+   * @param {string} params.facilityCode - 施設コード（例: '016'）
    * @param {string} params.date - 検索日 (YYYY-MM-DD形式)
-   * @param {number} params.days - 検索日数 (デフォルト: 7)
    * @returns {Promise<Array>} 空き状況の配列
    */
   async getAvailability(params) {
-    const { facilityId, date, days = 7 } = params;
+    const { facilityCode, date } = params;
 
-    if (!facilityId || !date) {
-      throw new Error('facilityId and date are required');
+    if (!facilityCode || !date) {
+      throw new Error('facilityCode and date are required');
     }
 
-    try {
-      const searchParams = new URLSearchParams({
-        op: 'calendar',
-        facility_id: facilityId,
-        target_date: date,
-        days: days.toString(),
-      });
+    // 日付をYYYYMMDD形式に変換
+    const dateObj = new Date(date);
+    const year = dateObj.getFullYear();
+    const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+    const day = String(dateObj.getDate()).padStart(2, '0');
+    const useDate = `${year}${month}${day}`;
+    const userYM = `${year}${month}`;
 
-      const response = await this._request(`index.php?${searchParams}`);
+    try {
+      const postParams = {
+        SshID: 'aid',
+        UserYM: userYM,
+        UseDay: day,
+        UseDate: useDate,
+        ShosetsuCode: facilityCode,
+      };
+
+      const response = await this._postRequest(postParams);
       const html = await response.text();
       
-      return this._parseAvailabilityFromHtml(html, facilityId, date);
+      return this._parseAvailabilityFromHtml(html, facilityCode, date);
     } catch (error) {
       throw new Error(`Failed to fetch availability: ${error.message}`);
     }
   }
 
   /**
-   * HTMLから施設一覧をパースする
-   * @private
-   * @param {string} html - HTMLコンテンツ
-   * @returns {Array} 施設情報の配列
-   */
-  _parseFacilitiesFromHtml(html) {
-    const facilities = [];
-    
-    const facilityPattern = /<a[^>]*href="[^"]*facility_id=(\d+)"[^>]*>([^<]+)<\/a>/gi;
-    let match;
-    
-    while ((match = facilityPattern.exec(html)) !== null) {
-      const [, id, name] = match;
-      facilities.push({
-        id,
-        name: name.trim(),
-        provider: 'chigasaki',
-        system: 'new',
-      });
-    }
-
-    return [...new Map(facilities.map(f => [f.id, f])).values()];
-  }
-
-  /**
    * HTMLから空き状況をパースする
+   * 実際のHTML構造に基づく実装（fail-closed）
    * @private
    * @param {string} html - HTMLコンテンツ
-   * @param {string} facilityId - 施設ID
-   * @param {string} baseDate - 基準日
+   * @param {string} facilityCode - 施設コード
+   * @param {string} date - 検索日 (YYYY-MM-DD)
    * @returns {Array} 空き状況の配列
    */
-  _parseAvailabilityFromHtml(html, facilityId, baseDate) {
+  _parseAvailabilityFromHtml(html, facilityCode, date) {
+    // fail-closed: 必須マーカーが存在するか確認
+    if (!html.includes('koma-table')) {
+      throw new Error('Expected HTML structure not found: missing koma-table. This might be an error page or unexpected response.');
+    }
+
     const availability = [];
     
-    const availabilityPattern = /<td[^>]*class="[^"]*available[^"]*"[^>]*data-date="([^"]+)"[^>]*data-time="([^"]+)"[^>]*>/gi;
-    let match;
+    // テーブルを抽出
+    const tablePattern = /<table[^>]*class="[^"]*koma-table[^"]*"[^>]*>([\s\S]*?)<\/table>/gi;
+    const tableMatches = html.matchAll(tablePattern);
     
-    while ((match = availabilityPattern.exec(html)) !== null) {
-      const [, date, time] = match;
-      availability.push({
-        facilityId,
-        date,
-        time,
-        status: 'available',
-        provider: 'chigasaki',
-        timestamp: new Date().toISOString(),
-      });
+    let foundTables = false;
+    for (const tableMatch of tableMatches) {
+      foundTables = true;
+      const tableHtml = tableMatch[1];
+      
+      // ヘッダー行から時間帯を取得
+      const timeHeaders = [];
+      const headerPattern = /<th[^>]*>(\d+)<\/th>/gi;
+      let headerMatch;
+      while ((headerMatch = headerPattern.exec(tableHtml)) !== null) {
+        timeHeaders.push(headerMatch[1] + ':00');
+      }
+      
+      // データ行を解析
+      const rowPattern = /<tr>([\s\S]*?)<\/tr>/gi;
+      let rowMatch;
+      while ((rowMatch = rowPattern.exec(tableHtml)) !== null) {
+        const rowHtml = rowMatch[1];
+        
+        // td要素を抽出
+        const cellPattern = /<td[^>]*>([\s\S]*?)<\/td>/gi;
+        let cellMatch;
+        let cellIndex = 0;
+        
+        while ((cellMatch = cellPattern.exec(rowHtml)) !== null) {
+          const fullCell = cellMatch[0];
+          const cellContent = cellMatch[1].trim();
+          
+          // 背景色を取得
+          const styleMatch = fullCell.match(/style="[^"]*background-color:\s*([^;"]+)/i);
+          const bgColor = styleMatch ? styleMatch[1].toLowerCase() : '';
+          
+          // 時間帯が取得できている場合のみ処理
+          if (cellIndex < timeHeaders.length) {
+            const time = timeHeaders[cellIndex];
+            let status;
+            
+            // 背景色またはテキストで状態を判定
+            if (bgColor.includes('#01fafa') || bgColor.includes('rgb(1, 250, 250)') || cellContent === '○') {
+              status = 'available';
+            } else if (bgColor.includes('#ffffe0') || bgColor.includes('rgb(255, 255, 224)') || cellContent === '×') {
+              status = 'reserved';
+            } else if (bgColor.includes('#ffffff') || bgColor.includes('rgb(255, 255, 255)') || cellContent === '-') {
+              status = 'unavailable';
+            }
+            
+            if (status) {
+              availability.push({
+                facilityCode,
+                date,
+                time,
+                status,
+                provider: 'chigasaki',
+                timestamp: new Date().toISOString(),
+              });
+            }
+          }
+          
+          cellIndex++;
+        }
+      }
     }
-
-    const reservedPattern = /<td[^>]*class="[^"]*reserved[^"]*"[^>]*data-date="([^"]+)"[^>]*data-time="([^"]+)"[^>]*>/gi;
     
-    while ((match = reservedPattern.exec(html)) !== null) {
-      const [, date, time] = match;
-      availability.push({
-        facilityId,
-        date,
-        time,
-        status: 'reserved',
-        provider: 'chigasaki',
-        timestamp: new Date().toISOString(),
-      });
+    if (!foundTables) {
+      throw new Error('No availability tables found in HTML. This might indicate an error or unexpected page structure.');
     }
-
+    
+    // データがない場合は空結果と解釈できるかチェック
+    if (availability.length === 0) {
+      // 空き状況テーブルは存在したがデータがない = 正常な空結果として許容
+      return [];
+    }
+    
     return availability.sort((a, b) => {
-      const dateCompare = a.date.localeCompare(b.date);
-      if (dateCompare !== 0) return dateCompare;
-      return a.time.localeCompare(b.time);
+      const timeCompare = a.time.localeCompare(b.time);
+      return timeCompare;
     });
   }
 
-  /**
-   * 施設の詳細情報を取得する
-   * @param {string} facilityId - 施設ID
-   * @returns {Promise<Object>} 施設の詳細情報
-   */
-  async getFacilityDetails(facilityId) {
-    if (!facilityId) {
-      throw new Error('facilityId is required');
-    }
-
-    try {
-      const response = await this._request(`index.php?op=facility&id=${facilityId}`);
-      const html = await response.text();
-      
-      return this._parseFacilityDetailsFromHtml(html, facilityId);
-    } catch (error) {
-      throw new Error(`Failed to fetch facility details: ${error.message}`);
-    }
-  }
-
-  /**
-   * HTMLから施設詳細をパースする
-   * @private
-   * @param {string} html - HTMLコンテンツ
-   * @param {string} facilityId - 施設ID
-   * @returns {Object} 施設詳細情報
-   */
-  _parseFacilityDetailsFromHtml(html, facilityId) {
-    const nameMatch = html.match(/<h1[^>]*>([^<]+)<\/h1>/i);
-    const addressMatch = html.match(/住所[：:]\s*([^<\n]+)/i);
-    const capacityMatch = html.match(/定員[：:]\s*(\d+)/i);
-
-    return {
-      id: facilityId,
-      name: nameMatch ? nameMatch[1].trim() : '',
-      address: addressMatch ? addressMatch[1].trim() : '',
-      capacity: capacityMatch ? parseInt(capacityMatch[1], 10) : null,
-      provider: 'chigasaki',
-      system: 'new',
-    };
-  }
 }
