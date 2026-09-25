@@ -1,14 +1,23 @@
 /**
- * LINE通知クライアント
+ * LINE Messaging API通知クライアント
+ * 
+ * LINE Notifyは2025-03-31に終了したため、Messaging APIを使用
+ * https://developers.line.biz/ja/reference/messaging-api/#send-push-message
  */
 
 export class LineNotifier {
   constructor(config = {}) {
-    this.accessToken = config.accessToken || process.env.LINE_NOTIFY_TOKEN;
-    this.endpoint = 'https://notify-api.line.me/api/notify';
+    this.channelAccessToken = config.channelAccessToken || process.env.LINE_CHANNEL_ACCESS_TOKEN;
+    this.destination = config.destination || process.env.LINE_GROUP_ID || process.env.LINE_USER_ID;
+    this.endpoint = 'https://api.line.me/v2/bot/message/push';
+    this.retryKey = config.retryKey;
     
-    if (!this.accessToken) {
-      throw new Error('LINE_NOTIFY_TOKEN is required');
+    if (!this.channelAccessToken) {
+      throw new Error('LINE_CHANNEL_ACCESS_TOKEN is required');
+    }
+    
+    if (!this.destination) {
+      throw new Error('LINE_GROUP_ID or LINE_USER_ID is required');
     }
   }
 
@@ -22,18 +31,34 @@ export class LineNotifier {
       throw new Error('message is required');
     }
 
+    const headers = {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${this.channelAccessToken}`,
+    };
+
+    // X-Line-Retry-Key for idempotency (optional)
+    if (this.retryKey) {
+      headers['X-Line-Retry-Key'] = this.retryKey;
+    }
+
     try {
       const response = await fetch(this.endpoint, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-          'Authorization': `Bearer ${this.accessToken}`,
-        },
-        body: new URLSearchParams({ message }).toString(),
+        headers,
+        body: JSON.stringify({
+          to: this.destination,
+          messages: [
+            {
+              type: 'text',
+              text: message,
+            },
+          ],
+        }),
       });
 
       if (!response.ok) {
-        throw new Error(`LINE Notify API error: ${response.status}`);
+        const errorBody = await response.text();
+        throw new Error(`LINE Messaging API error: ${response.status} - ${errorBody}`);
       }
 
       return await response.json();

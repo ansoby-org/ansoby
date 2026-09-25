@@ -64,14 +64,15 @@ npm test
 
 ## クイックスタート
 
-### 1. LINE Notifyトークンの取得
+### 1. LINE Messaging APIの設定
 
-https://notify-bot.line.me/ でトークンを発行
+[LINE Developers Console](https://developers.line.biz/console/) でMessaging APIチャネルを作成し、チャネルアクセストークンと通知先IDを取得
 
 ### 2. 環境変数の設定
 
 ```bash
-export LINE_NOTIFY_TOKEN=your_token_here
+export LINE_CHANNEL_ACCESS_TOKEN=your_channel_access_token_here
+export LINE_GROUP_ID=your_group_id_here
 ```
 
 ### 3. 監視の実行

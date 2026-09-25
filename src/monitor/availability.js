@@ -8,8 +8,8 @@ import { LineNotifier } from '../notifier/line.js';
 
 export class AvailabilityMonitor {
   constructor(config = {}) {
-    this.client = new ChigasakiClient(config.client);
-    this.notifier = config.notifier || new LineNotifier(config.line);
+    this.client = config.client || new ChigasakiClient(config.clientConfig);
+    this.notifier = config.notifier || new LineNotifier(config.lineConfig);
     this.stateFile = config.stateFile || './.availability-state.json';
   }
 
@@ -110,18 +110,30 @@ export class AvailabilityMonitor {
 
     // 新規の空きがあれば通知
     let notificationSent = false;
+    let notificationError = null;
+    
     if (newAvailabilities.length > 0) {
       try {
         await this.notifier.notifyAvailability(newAvailabilities, facilityName);
         notificationSent = true;
       } catch (error) {
+        notificationError = error.message;
         console.error('Failed to send notification:', error.message);
+        // 通知失敗時はstateを更新せずにエラーを返す
+        throw new Error(`Notification failed: ${error.message}`);
       }
     }
 
-    // 状態を保存
+    // 通知が成功した場合のみ状態を保存
+    // （新規空きがない場合も保存）
     state[stateKey] = currentAvailability;
-    this._saveState(state);
+    
+    try {
+      this._saveState(state);
+    } catch (error) {
+      console.error('Failed to save state:', error.message);
+      throw new Error(`State save failed: ${error.message}`);
+    }
 
     return {
       facilityCode,

@@ -134,6 +134,12 @@ export class ChigasakiClient {
       throw new Error('Expected HTML structure not found: missing koma-table. This might be an error page or unexpected response.');
     }
 
+    // 正常な空き状況ページの識別マーカーを確認
+    // SelectCalendarOuter は空き状況カレンダー表示のコンテナ
+    if (!html.includes('SelectCalendarOuter')) {
+      throw new Error('Expected availability page structure not found: missing SelectCalendarOuter. This might not be a valid availability page.');
+    }
+
     const availability = [];
     
     // テーブルを抽出
@@ -141,6 +147,8 @@ export class ChigasakiClient {
     const tableMatches = html.matchAll(tablePattern);
     
     let foundTables = false;
+    let foundValidTimeHeaders = false;
+    
     for (const tableMatch of tableMatches) {
       foundTables = true;
       const tableHtml = tableMatch[1];
@@ -151,6 +159,12 @@ export class ChigasakiClient {
       let headerMatch;
       while ((headerMatch = headerPattern.exec(tableHtml)) !== null) {
         timeHeaders.push(headerMatch[1] + ':00');
+        foundValidTimeHeaders = true;
+      }
+      
+      // 時間帯ヘッダーがない場合は不正な構造
+      if (timeHeaders.length === 0) {
+        continue; // 次のテーブルを試す
       }
       
       // データ行を解析
@@ -207,9 +221,13 @@ export class ChigasakiClient {
       throw new Error('No availability tables found in HTML. This might indicate an error or unexpected page structure.');
     }
     
+    if (!foundValidTimeHeaders) {
+      throw new Error('No valid time headers found in availability tables. The page structure may have changed.');
+    }
+    
     // データがない場合は空結果と解釈できるかチェック
     if (availability.length === 0) {
-      // 空き状況テーブルは存在したがデータがない = 正常な空結果として許容
+      // 空き状況テーブルと時間帯ヘッダーは存在したがデータがない = 正常な空結果として許容
       return [];
     }
     

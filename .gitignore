@@ -8,6 +8,8 @@ coverage/
 dist/
 build/
 .cache/
+.availability-state.json
+.test-availability-state.json
 .AppleDouble
 .LSOverride
 

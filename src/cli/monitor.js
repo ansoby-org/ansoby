@@ -20,7 +20,8 @@ async function main() {
     console.log('  --help               ヘルプを表示');
     console.log('');
     console.log('Environment variables:');
-    console.log('  LINE_NOTIFY_TOKEN    LINE Notifyアクセストークン（必須）');
+    console.log('  LINE_CHANNEL_ACCESS_TOKEN    LINE Messaging APIチャネルアクセストークン（必須）');
+    console.log('  LINE_GROUP_ID or LINE_USER_ID  通知先のグループIDまたはユーザーID（必須）');
     console.log('');
     console.log('Examples:');
     console.log('  node src/cli/monitor.js');
@@ -30,9 +31,16 @@ async function main() {
   }
 
   // 環境変数チェック
-  if (!process.env.LINE_NOTIFY_TOKEN) {
-    console.error('Error: LINE_NOTIFY_TOKEN environment variable is required');
-    console.error('Set it with: export LINE_NOTIFY_TOKEN=your_token_here');
+  if (!process.env.LINE_CHANNEL_ACCESS_TOKEN) {
+    console.error('Error: LINE_CHANNEL_ACCESS_TOKEN environment variable is required');
+    console.error('Set it with: export LINE_CHANNEL_ACCESS_TOKEN=your_token_here');
+    process.exit(1);
+  }
+  
+  if (!process.env.LINE_GROUP_ID && !process.env.LINE_USER_ID) {
+    console.error('Error: LINE_GROUP_ID or LINE_USER_ID environment variable is required');
+    console.error('Set it with: export LINE_GROUP_ID=your_group_id_here');
+    console.error('         or: export LINE_USER_ID=your_user_id_here');
     process.exit(1);
   }
 

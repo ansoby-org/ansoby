@@ -59,20 +59,22 @@ describe('ChigasakiClient', () => {
       const client = new ChigasakiClient();
       // 実際のHTMLサンプル（調査結果に基づく）
       const html = `
-        <table class="koma-table" style="margin:0 auto;">
-          <tbody>
-            <tr>
-              <th style="width:40px;">10</th>
-              <th style="width:40px;">11</th>
-              <th style="width:40px;">12</th>
-            </tr>
-            <tr>
-              <td style="width:140px;background-color:#01fafa;">○</td>
-              <td style="width:40px;background-color:#ffffe0;">×</td>
-              <td style="width:40px;background-color:#ffffff;">-</td>
-            </tr>
-          </tbody>
-        </table>
+        <div class="SelectCalendarOuter">
+          <table class="koma-table" style="margin:0 auto;">
+            <tbody>
+              <tr>
+                <th style="width:40px;">10</th>
+                <th style="width:40px;">11</th>
+                <th style="width:40px;">12</th>
+              </tr>
+              <tr>
+                <td style="width:140px;background-color:#01fafa;">○</td>
+                <td style="width:40px;background-color:#ffffe0;">×</td>
+                <td style="width:40px;background-color:#ffffff;">-</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
       `;
       
       const availability = client._parseAvailabilityFromHtml(html, '016', '2026-09-25');
@@ -99,11 +101,13 @@ describe('ChigasakiClient', () => {
     it('should return empty array for valid HTML with no data', () => {
       const client = new ChigasakiClient();
       const html = `
-        <table class="koma-table">
-          <tbody>
-            <tr><th>10</th></tr>
-          </tbody>
-        </table>
+        <div class="SelectCalendarOuter">
+          <table class="koma-table">
+            <tbody>
+              <tr><th>10</th></tr>
+            </tbody>
+          </table>
+        </div>
       `;
       
       const availability = client._parseAvailabilityFromHtml(html, '016', '2026-09-25');

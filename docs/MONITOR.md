@@ -26,23 +26,33 @@
 
 ## セットアップ
 
-### 1. LINE Notify トークンの取得
+### 1. LINE Messaging APIの設定
 
-1. https://notify-bot.line.me/ にアクセス
-2. 「マイページ」→「トークンを発行する」
-3. トークン名と通知先を選択して発行
-4. 発行されたトークンをコピー
+LINE Notifyは2025年3月31日に終了したため、Messaging APIを使用します。
+
+1. [LINE Developers Console](https://developers.line.biz/console/) にアクセス
+2. プロバイダーとMessaging APIチャネルを作成
+3. チャネルアクセストークン（長期）を発行
+4. 通知先のグループIDまたはユーザーIDを取得
+   - グループの場合: Botをグループに招待し、グループIDを取得
+   - ユーザーの場合: BotとトークしてユーザーIDを取得
+
+参考: https://developers.line.biz/ja/docs/messaging-api/
 
 ### 2. 環境変数の設定
 
 ```bash
-export LINE_NOTIFY_TOKEN=your_token_here
+export LINE_CHANNEL_ACCESS_TOKEN=your_channel_access_token_here
+export LINE_GROUP_ID=your_group_id_here
+# または
+export LINE_USER_ID=your_user_id_here
 ```
 
 または、`.env` ファイルに記載:
 
 ```
-LINE_NOTIFY_TOKEN=your_token_here
+LINE_CHANNEL_ACCESS_TOKEN=your_channel_access_token_here
+LINE_GROUP_ID=your_group_id_here
 ```
 
 ## 使い方
@@ -205,19 +215,24 @@ sudo systemctl start ansoby-monitor.timer
 
 ### LINE通知が届かない
 
-1. トークンが正しく設定されているか確認
+1. 環境変数が正しく設定されているか確認
    ```bash
-   echo $LINE_NOTIFY_TOKEN
+   echo $LINE_CHANNEL_ACCESS_TOKEN
+   echo $LINE_GROUP_ID
    ```
 
 2. トークンの有効性をテスト
    ```bash
-   curl -X POST https://notify-api.line.me/api/notify \
-     -H "Authorization: Bearer $LINE_NOTIFY_TOKEN" \
-     -d "message=Test"
+   curl -X POST https://api.line.me/v2/bot/message/push \
+     -H "Authorization: Bearer $LINE_CHANNEL_ACCESS_TOKEN" \
+     -H "Content-Type: application/json" \
+     -d '{
+       "to": "'"$LINE_GROUP_ID"'",
+       "messages": [{"type": "text", "text": "Test"}]
+     }'
    ```
 
-3. LINEアプリで「LINE Notify」を友達追加しているか確認
+3. Botがグループまたはユーザーとトークできる状態か確認
 
 ### 空き状況が取得できない
 
@@ -251,13 +266,13 @@ npm test
 
 ### モック実行
 
-環境変数を設定せずにテスト:
+環境変数を設定せずにテスト（エラーになります）:
 
 ```bash
-LINE_NOTIFY_TOKEN=test npm run monitor -- --date 2026-09-25 --days 1
+LINE_CHANNEL_ACCESS_TOKEN=test LINE_GROUP_ID=test npm run monitor -- --date 2026-09-25 --days 1
 ```
 
-（実際の通知は送信されません）
+テスト時は `npm test` でモックを使用した単体テストを実行してください。
 
 ## ライセンス
 
