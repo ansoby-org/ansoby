@@ -291,9 +291,24 @@ export class ChigasakiClient {
             
             if (status) {
               recognizedCells++;
+              
+              // room名から section を抽出（例: "体育室1 / 1" → room="体育室1", section="1"）
+              let extractedRoom = roomName || null;
+              let section = null;
+              if (roomName && roomName.includes(' / ')) {
+                const parts = roomName.split(' / ');
+                extractedRoom = parts[0].trim();
+                section = parts[1].trim();
+              } else if (roomName && roomName.includes('/')) {
+                const parts = roomName.split('/');
+                extractedRoom = parts[0].trim();
+                section = parts[1].trim();
+              }
+              
               availability.push({
                 facilityCode,
-                room: roomName || null,
+                room: extractedRoom,
+                section,
                 date,
                 time,
                 status,
@@ -328,6 +343,7 @@ export class ChigasakiClient {
               availability.push({
                 facilityCode,
                 room: null,
+                section: null,
                 date,
                 time,
                 status,

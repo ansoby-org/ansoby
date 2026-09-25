@@ -10,7 +10,8 @@
  */
 function getSlotKey(slot) {
   const room = slot.room || 'default';
-  return `${slot.facilityCode}:${room}:${slot.date}:${slot.time}`;
+  const section = slot.section || 'default';
+  return `${slot.facilityCode}:${room}:${section}:${slot.date}:${slot.time}`;
 }
 
 /**

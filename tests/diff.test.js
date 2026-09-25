@@ -77,6 +77,26 @@ describe('getDiff', () => {
     assert.strictEqual(added[0].time, '10:00');
     assert.strictEqual(removed.length, 0);
   });
+
+  it('should distinguish different sections at same time', () => {
+    const previous = [
+      { facilityCode: '001', room: '体育室1', section: '1', date: '2026-09-25', time: '10:00', status: 'available' },
+    ];
+
+    const current = [
+      { facilityCode: '001', room: '体育室1', section: '1', date: '2026-09-25', time: '10:00', status: 'available' },
+      { facilityCode: '001', room: '体育室1', section: '2', date: '2026-09-25', time: '10:00', status: 'available' },
+      { facilityCode: '001', room: '体育室1', section: '3', date: '2026-09-25', time: '10:00', status: 'available' },
+    ];
+
+    const { added, removed } = getDiff(previous, current);
+
+    // 別のsectionなので新規空きとして検出される
+    assert.strictEqual(added.length, 2);
+    const sections = added.map(s => s.section).sort();
+    assert.deepStrictEqual(sections, ['2', '3']);
+    assert.strictEqual(removed.length, 0);
+  });
 });
 
 describe('getNewAvailabilities', () => {

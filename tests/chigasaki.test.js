@@ -195,6 +195,52 @@ describe('ChigasakiClient', () => {
         /could not recognize any status markers/
       );
     });
+
+    it('should extract section from room name', () => {
+      const client = new ChigasakiClient();
+      // 体育室1 / 1 のように section を含む部屋名
+      const html = `
+        <div class="SelectCalendarOuter">
+          <table class="koma-table">
+            <tbody>
+              <tr>
+                <th>部屋名</th>
+                <th>10</th>
+                <th>11</th>
+              </tr>
+              <tr>
+                <td>体育室1 / 1</td>
+                <td style="background-color:#01fafa;">○</td>
+                <td style="background-color:#ffffe0;">×</td>
+              </tr>
+              <tr>
+                <td>体育室1 / 2</td>
+                <td style="background-color:#ffffff;">-</td>
+                <td style="background-color:#01fafa;">○</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      `;
+      
+      const availability = client._parseAvailabilityFromHtml(html, '001', '2026-09-25');
+      
+      assert.strictEqual(availability.length, 4);
+      
+      // 体育室1 / 1 の 10時
+      const section1_10 = availability.find(s => s.time === '10:00' && s.section === '1');
+      assert.ok(section1_10);
+      assert.strictEqual(section1_10.room, '体育室1');
+      assert.strictEqual(section1_10.section, '1');
+      assert.strictEqual(section1_10.status, 'available');
+      
+      // 体育室1 / 2 の 11時
+      const section2_11 = availability.find(s => s.time === '11:00' && s.section === '2');
+      assert.ok(section2_11);
+      assert.strictEqual(section2_11.room, '体育室1');
+      assert.strictEqual(section2_11.section, '2');
+      assert.strictEqual(section2_11.status, 'available');
+    });
   });
 });
 

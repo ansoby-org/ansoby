@@ -168,6 +168,11 @@ ansoby/
 
 - [APIリファレンス](docs/API.md) - 詳細なAPI仕様
 - [茅ヶ崎市プロバイダー仕様](docs/CHIGASAKI.md) - 茅ヶ崎市の実装詳細
+- [アーキテクチャ](docs/ARCHITECTURE.md) - システム構成、階層構造、データフロー
+- [設定ファイル仕様](docs/CONFIG.md) - config.json の詳細説明
+- [施設コード一覧](docs/FACILITIES.md) - 茅ヶ崎市の施設コード、確認方法
+- [施設移行対応表](docs/FACILITY_MIGRATION.md) - 旧システム→新システムの対応表
+- [監視機能ガイド](docs/MONITOR.md) - 空き状況監視の使い方
 
 ## ライセンス
 

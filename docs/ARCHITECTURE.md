@@ -55,6 +55,8 @@ LINE Messaging API送信（pushLineMessages）
   - `getDiff()`: 追加/削除を算出
   - `getNewAvailabilities()`: 新規空きのみ取得
   - 空きスロットのみを対象
+  - スロットキー: `${facilityCode}:${room}:${section}:${date}:${time}`
+  - 施設・部屋・区画・日付・時刻で一意に識別
 
 - **notify-message.js**: 通知制御
   - `applyNotifyConditions()`: 通知条件フィルタリング
@@ -93,9 +95,70 @@ LINE Messaging API送信（pushLineMessages）
   - Redisクライアント初期化
   - アプリケーション実行
 
-- **monitor.js**: シンプルな監視ツール
-  - 環境変数ベース
-  - 単一施設の監視
+## データ構造
+
+### スロット（Slot）
+
+空き状況の最小単位。facility（施設） → room（部屋） → section（区画）の階層構造を持ちます。
+
+```javascript
+{
+  facilityCode: '001',        // 施設コード
+  facilityName: '総合体育館', // 施設名（オプション）
+  room: '体育室1',            // 部屋名
+  section: '1',               // 区画番号（全面の場合はnullまたは'全面'）
+  date: '2026-09-25',         // 日付 (YYYY-MM-DD)
+  time: '10:00',              // 時刻 (HH:MM)
+  status: 'available',        // ステータス (available/reserved/unavailable)
+  provider: 'chigasaki',      // プロバイダー名
+  timestamp: '2026-09-25T00:00:00.000Z'  // 取得日時
+}
+```
+
+#### ステータス
+
+- `available`: 空きあり（予約可能）
+- `reserved`: 予約済み
+- `unavailable`: 受付期間外
+
+#### 階層構造
+
+- **facility**: 施設全体（例: 総合体育館、市体育館、コミュニティホール）
+- **room**: 施設内の部屋（例: 体育室1、大集会室全室、大集会室1）
+- **section**: 部屋内の区画（例: 1, 2, 3, 全面、北面、南面）
+
+**例1**: 総合体育館 体育室1 の区画1
+```javascript
+{ facilityCode: '001', room: '体育室1', section: '1', ... }
+```
+
+**例2**: 市体育館 北面
+```javascript
+{ facilityCode: '002', room: '体育室', section: '北面', ... }
+```
+
+**例3**: コミュニティホール 大集会室全室（区画なし）
+```javascript
+{ facilityCode: '016', room: '大集会室全室(500人)', section: null, ... }
+```
+
+### 差分検出キー
+
+スロットの一意性は以下のキーで判定されます：
+
+```javascript
+`${facilityCode}:${room}:${section || 'default'}:${date}:${time}`
+```
+
+これにより、同じ施設・同じ時刻でも、異なる部屋や区画は別のスロットとして扱われます。
+
+### 部屋名・区画名の抽出
+
+HTMLパーサーは部屋名セルから自動的に section を抽出します。
+
+- `"体育室1 / 1"` → `room="体育室1"`, `section="1"`
+- `"体育室1/2"` → `room="体育室1"`, `section="2"`
+- `"大集会室全室(500人)"` → `room="大集会室全室(500人)"`, `section=null`
 
 ## 設定
 
