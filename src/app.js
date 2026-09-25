@@ -15,6 +15,7 @@ import { RedisStorage } from './storage/redis.js';
 import { getDiff } from './core/diff.js';
 import { applyNotifyConditions, generateNotifyMessage } from './core/notify-message.js';
 import { pushLineMessages } from './notifier/push-line-messages.js';
+import { filterTargetSlots } from './core/filter-targets.js';
 import { readFileSync } from 'fs';
 
 export class App {
@@ -82,8 +83,30 @@ export class App {
 
       console.log(`[${name}] 新規空き: ${added.length}枠`);
 
-      // 4. 通知条件を適用
-      const filtered = applyNotifyConditions(added, notifyConditions);
+      // 4. 監視対象フィルタリング
+      const targetFiltered = filterTargetSlots(added, this.config.targetRoomSections);
+      
+      if (targetFiltered.length === 0) {
+        console.log(`[${name}] 監視対象外の区画のみ（通知対象: ${added.length} → ${targetFiltered.length}）`);
+        
+        // 監視対象外でも状態は更新
+        await this.storage.save(stateKey, current);
+        
+        return {
+          facilityCode: code,
+          facilityName: name,
+          date,
+          newAvailabilities: added.length,
+          targetFiltered: targetFiltered.length,
+          notificationSent: false,
+          success: true,
+        };
+      }
+      
+      console.log(`[${name}] 監視対象: ${added.length}枠 → ${targetFiltered.length}枠`);
+
+      // 5. 通知条件を適用
+      const filtered = applyNotifyConditions(targetFiltered, notifyConditions);
 
       if (filtered.length === 0) {
         console.log(`[${name}] 通知条件に一致せず`);

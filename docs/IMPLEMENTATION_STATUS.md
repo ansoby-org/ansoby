@@ -5,12 +5,14 @@
 ### コア機能
 
 - [x] facility / room / section の階層構造実装
-- [x] HTMLパーサーでの section 自動抽出
+- [x] HTMLパーサーでの section 自動抽出（想定表記ベース）
 - [x] 差分検出キーに section を含める
 - [x] 複数部屋・複数区画の独立した追跡
+- [x] 監視対象フィルタリング機能（targetRoomSections）
 - [x] fail-closed設計（HTML構造変更検出）
 - [x] セッション管理（Cookie）
 - [x] 実測POST契約の再現（baseDate/date）
+- [x] config.example.json JSONバリデーション
 
 ### ストレージ
 
