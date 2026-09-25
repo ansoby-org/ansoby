@@ -45,17 +45,18 @@ console.log(facilities);
 
 ```javascript
 const availability = await client.getAvailability({
-  facilityId: '101',
-  date: '2026-09-25',
-  days: 7,
+  facilityCode: '016',
+  date: '2026-10-02',
+  baseDate: '2026-09-25', // 省略時はdateと同じ
 });
 
 console.log(availability);
 // [
 //   {
-//     facilityId: '101',
-//     date: '2026-09-25',
-//     time: '09:00',
+//     facilityCode: '016',
+//     room: '大集会室全室(500人)',
+//     date: '2026-10-02',
+//     time: '10:00',
 //     status: 'available',
 //     provider: 'chigasaki',
 //     timestamp: '2026-09-25T00:00:00.000Z'
@@ -64,9 +65,30 @@ console.log(availability);
 // ]
 ```
 
+#### パラメータ
+- `facilityCode`: 施設コード（例: '016'）
+- `date`: 表示する日付 (YYYY-MM-DD形式)
+- `baseDate`: 基準日 (YYYY-MM-DD形式、省略時はdateと同じ)
+
+基準日は、実際のサイトでカレンダーから最初に選択した日付を示します。
+日付変更ボタンで別の日に移動する場合、基準日は固定され、表示日のみが変更されます。
+
+#### POSTパラメータ
+実際のサイトに送信されるパラメータ：
+- `UserYM`: 基準年月 (YYYYMM形式、例: 202609)
+- `UseDay`: 基準日 (DD形式、例: 25)
+- `UseDate`: 表示日 (YYYYMMDD形式、例: 20261002)
+- `ShosetsuCode`: 施設コード (例: 016)
+- `disp_open`: 日付変更時に送信 (値: 0)
+
 #### ステータス
 - `available`: 空き（予約可能）
 - `reserved`: 予約済み
+- `unavailable`: 受付期間外
+
+#### 部屋情報
+複数の部屋がある施設では、各スロットに `room` 属性が含まれます。
+同じ施設・日付・時間でも、部屋が異なれば別のスロットとして扱われます。
 
 ### 3. 施設詳細の取得
 

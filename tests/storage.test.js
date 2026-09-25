@@ -32,13 +32,32 @@ describe('FileStorage', () => {
     cleanup();
   });
 
-  it('should return empty array for non-existent key', async () => {
+  it('should return null for non-existent key', async () => {
     cleanup();
     
     const storage = new FileStorage({ stateDir: testDir });
     const loaded = await storage.load('non-existent');
 
-    assert.deepStrictEqual(loaded, []);
+    assert.strictEqual(loaded, null);
+
+    cleanup();
+  });
+
+  it('should throw on corrupted state file', async () => {
+    cleanup();
+    
+    const storage = new FileStorage({ stateDir: testDir });
+    const filePath = storage.getFilePath('corrupt-key');
+    
+    // 不正なJSONを書き込む
+    const { writeFileSync, mkdirSync } = await import('fs');
+    mkdirSync(testDir, { recursive: true });
+    writeFileSync(filePath, '{invalid json}', 'utf-8');
+
+    await assert.rejects(
+      async () => await storage.load('corrupt-key'),
+      /Failed to parse state from file/
+    );
 
     cleanup();
   });
@@ -53,7 +72,7 @@ describe('FileStorage', () => {
     await storage.delete('test-key');
     const loaded = await storage.load('test-key');
 
-    assert.deepStrictEqual(loaded, []);
+    assert.strictEqual(loaded, null); // 削除後はnull
 
     cleanup();
   });

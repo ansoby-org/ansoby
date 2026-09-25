@@ -9,7 +9,8 @@
  * @returns {string} ユニークキー
  */
 function getSlotKey(slot) {
-  return `${slot.facilityCode}:${slot.date}:${slot.time}`;
+  const room = slot.room || 'default';
+  return `${slot.facilityCode}:${room}:${slot.date}:${slot.time}`;
 }
 
 /**

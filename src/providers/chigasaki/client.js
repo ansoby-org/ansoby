@@ -13,6 +13,57 @@ export class ChigasakiClient {
     this.baseUrl = config.baseUrl || 'https://k7.p-kashikan.jp/chigasaki-city';
     this.timeout = config.timeout || 30000;
     this.sessionCookies = '';
+    this.sessionInitialized = false;
+  }
+
+  /**
+   * セッションを初期化する（トップページにアクセス）
+   * @private
+   */
+  async _initializeSession() {
+    if (this.sessionInitialized) {
+      return;
+    }
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), this.timeout);
+
+    try {
+      const response = await fetch(this.baseUrl + '/', {
+        method: 'GET',
+        signal: controller.signal,
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36',
+        },
+      });
+
+      clearTimeout(timeoutId);
+
+      if (!response.ok) {
+        throw new Error(`Session initialization failed: ${response.status}`);
+      }
+
+      // Cookieを保存
+      const setCookie = response.headers.get('set-cookie');
+      if (setCookie) {
+        this.sessionCookies = setCookie.split(';')[0];
+      }
+
+      const html = await response.text();
+
+      // トップページの基本的な検証（ログインページや空き状況ページではないこと）
+      if (html.includes('class="koma-table"')) {
+        throw new Error('Session initialization returned availability page instead of top page');
+      }
+
+      this.sessionInitialized = true;
+    } catch (error) {
+      clearTimeout(timeoutId);
+      if (error.name === 'AbortError') {
+        throw new Error('Session initialization timeout');
+      }
+      throw error;
+    }
   }
 
   /**
@@ -83,32 +134,45 @@ export class ChigasakiClient {
    * 指定された施設の空き状況を取得する
    * @param {Object} params - 検索パラメータ
    * @param {string} params.facilityCode - 施設コード（例: '016'）
-   * @param {string} params.date - 検索日 (YYYY-MM-DD形式)
+   * @param {string} params.date - 表示する日付 (YYYY-MM-DD形式)
+   * @param {string} params.baseDate - 基準日 (YYYY-MM-DD形式、省略時はdateと同じ)
    * @returns {Promise<Array>} 空き状況の配列
    */
   async getAvailability(params) {
-    const { facilityCode, date } = params;
+    const { facilityCode, date, baseDate } = params;
 
     if (!facilityCode || !date) {
       throw new Error('facilityCode and date are required');
     }
 
-    // 日付をYYYYMMDD形式に変換
-    const dateObj = new Date(date);
-    const year = dateObj.getFullYear();
-    const month = String(dateObj.getMonth() + 1).padStart(2, '0');
-    const day = String(dateObj.getDate()).padStart(2, '0');
-    const useDate = `${year}${month}${day}`;
-    const userYM = `${year}${month}`;
+    // セッション初期化
+    await this._initializeSession();
+
+    // 基準日（UserYM, UseDayに使用）
+    const baseDateObj = baseDate ? new Date(baseDate) : new Date(date);
+    const baseYear = baseDateObj.getFullYear();
+    const baseMonth = String(baseDateObj.getMonth() + 1).padStart(2, '0');
+    const baseDay = String(baseDateObj.getDate()).padStart(2, '0');
+
+    // 表示する日付（UseDateに使用）
+    const displayDateObj = new Date(date);
+    const displayYear = displayDateObj.getFullYear();
+    const displayMonth = String(displayDateObj.getMonth() + 1).padStart(2, '0');
+    const displayDay = String(displayDateObj.getDate()).padStart(2, '0');
 
     try {
       const postParams = {
         SshID: 'aid',
-        UserYM: userYM,
-        UseDay: day,
-        UseDate: useDate,
+        UserYM: `${baseYear}${baseMonth}`,
+        UseDay: baseDay,
+        UseDate: `${displayYear}${displayMonth}${displayDay}`,
         ShosetsuCode: facilityCode,
       };
+
+      // disp_openパラメータ（日付変更時に使用される）
+      if (baseDate && baseDate !== date) {
+        postParams.disp_open = '0';
+      }
 
       const response = await this._postRequest(postParams);
       const html = await response.text();
@@ -175,34 +239,56 @@ export class ChigasakiClient {
         
         // td要素を抽出
         const cellPattern = /<td[^>]*>([\s\S]*?)<\/td>/gi;
+        const cells = [];
         let cellMatch;
-        let cellIndex = 0;
         
         while ((cellMatch = cellPattern.exec(rowHtml)) !== null) {
-          const fullCell = cellMatch[0];
-          const cellContent = cellMatch[1].trim();
+          cells.push({
+            fullCell: cellMatch[0],
+            content: cellMatch[1].trim(),
+          });
+        }
+        
+        // 最初のセルが部屋名かチェック（時間セルより幅が広い、またはテキストが長い）
+        if (cells.length === 0) continue;
+        
+        let startIndex = 0;
+        const firstCell = cells[0];
+        
+        // 部屋名セルの判定: 数値以外の内容、または幅が140px以上
+        if (firstCell.fullCell.includes('width:140px') || 
+            (firstCell.content && firstCell.content.length > 3 && !/^[○×\-]$/.test(firstCell.content))) {
+          // 最初のセルは部屋名なのでスキップ
+          startIndex = 1;
           
-          // 背景色を取得
-          const styleMatch = fullCell.match(/style="[^"]*background-color:\s*([^;"]+)/i);
-          const bgColor = styleMatch ? styleMatch[1].toLowerCase() : '';
+          // 部屋名を抽出
+          const roomName = firstCell.content.replace(/<[^>]*>/g, '').trim();
           
-          // 時間帯が取得できている場合のみ処理
-          if (cellIndex < timeHeaders.length) {
-            const time = timeHeaders[cellIndex];
+          // 時間帯セルを処理
+          for (let i = startIndex; i < cells.length && (i - startIndex) < timeHeaders.length; i++) {
+            const cell = cells[i];
+            const timeIndex = i - startIndex;
+            const time = timeHeaders[timeIndex];
+            
+            // 背景色を取得
+            const styleMatch = cell.fullCell.match(/style="[^"]*background-color:\s*([^;"]+)/i);
+            const bgColor = styleMatch ? styleMatch[1].toLowerCase() : '';
+            
             let status;
             
             // 背景色またはテキストで状態を判定
-            if (bgColor.includes('#01fafa') || bgColor.includes('rgb(1, 250, 250)') || cellContent === '○') {
+            if (bgColor.includes('#01fafa') || bgColor.includes('rgb(1, 250, 250)') || cell.content === '○') {
               status = 'available';
-            } else if (bgColor.includes('#ffffe0') || bgColor.includes('rgb(255, 255, 224)') || cellContent === '×') {
+            } else if (bgColor.includes('#ffffe0') || bgColor.includes('rgb(255, 255, 224)') || cell.content === '×') {
               status = 'reserved';
-            } else if (bgColor.includes('#ffffff') || bgColor.includes('rgb(255, 255, 255)') || cellContent === '-') {
+            } else if (bgColor.includes('#ffffff') || bgColor.includes('rgb(255, 255, 255)') || cell.content === '-') {
               status = 'unavailable';
             }
             
             if (status) {
               availability.push({
                 facilityCode,
+                room: roomName || null,
                 date,
                 time,
                 status,
@@ -211,8 +297,37 @@ export class ChigasakiClient {
               });
             }
           }
-          
-          cellIndex++;
+        } else {
+          // 部屋名列がない場合（後方互換性）
+          for (let cellIndex = 0; cellIndex < cells.length && cellIndex < timeHeaders.length; cellIndex++) {
+            const cell = cells[cellIndex];
+            const time = timeHeaders[cellIndex];
+            
+            const styleMatch = cell.fullCell.match(/style="[^"]*background-color:\s*([^;"]+)/i);
+            const bgColor = styleMatch ? styleMatch[1].toLowerCase() : '';
+            
+            let status;
+            
+            if (bgColor.includes('#01fafa') || bgColor.includes('rgb(1, 250, 250)') || cell.content === '○') {
+              status = 'available';
+            } else if (bgColor.includes('#ffffe0') || bgColor.includes('rgb(255, 255, 224)') || cell.content === '×') {
+              status = 'reserved';
+            } else if (bgColor.includes('#ffffff') || bgColor.includes('rgb(255, 255, 255)') || cell.content === '-') {
+              status = 'unavailable';
+            }
+            
+            if (status) {
+              availability.push({
+                facilityCode,
+                room: null,
+                date,
+                time,
+                status,
+                provider: 'chigasaki',
+                timestamp: new Date().toISOString(),
+              });
+            }
+          }
         }
       }
     }

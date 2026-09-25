@@ -60,10 +60,20 @@ curl -X POST 'https://k7.p-kashikan.jp/chigasaki-city/index.php' \
 
 ### POSTパラメータ
 - `SshID`: "aid" (空き状況確認モード)
-- `UserYM`: 年月 (YYYYMM)
-- `UseDay`: 基準日 (DD)
-- `UseDate`: 対象日付 (YYYYMMDD)
+- `UserYM`: 基準年月 (YYYYMM、例: 202609)
+- `UseDay`: 基準日 (DD、例: 25)
+- `UseDate`: 表示日 (YYYYMMDD、例: 20261002)
 - `ShosetsuCode`: 施設コード (例: "016" = 茅ヶ崎市コミュニティホール)
+- `disp_open`: 日付変更時に送信 (値: 0)
+
+**実測値の例** (2026-09-25 基準日、2026-10-02 表示日):
+```
+UserYM=202609
+UseDay=25
+UseDate=20261002
+ShosetsuCode=016
+disp_open=0
+```
 
 ### 空き状況の判定方法
 

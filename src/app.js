@@ -54,8 +54,8 @@ export class App {
       // 2. 前回の状態を読み込む
       const previous = await this.storage.load(stateKey);
 
-      // 3. 差分を算出
-      const { added, removed } = getDiff(previous, current);
+      // 3. 差分を算出（初回実行時はprevious=nullなので全件新規）
+      const { added, removed } = getDiff(previous || [], current);
 
       if (added.length === 0) {
         console.log(`[${name}] 新規空きなし`);
@@ -149,6 +149,19 @@ export class App {
     } catch (error) {
       console.error(`[${name}] 処理失敗:`, error.message);
       
+      // fail-closed対象のエラーは再throwする
+      // - LINE通知失敗
+      // - ストレージ障害（read/write）
+      // - API取得失敗
+      if (error.message.includes('LINE notification failed') ||
+          error.message.includes('Failed to load state') ||
+          error.message.includes('Failed to parse state') ||
+          error.message.includes('Failed to save state') ||
+          error.message.includes('Failed to fetch availability')) {
+        throw error;
+      }
+      
+      // その他のエラーは記録するがthrowしない
       return {
         facilityCode: code,
         facilityName: name,
@@ -162,6 +175,7 @@ export class App {
   /**
    * 全施設の監視を実行
    * @returns {Promise<Array>} 実行結果の配列
+   * @throws {Error} fail-closed対象の失敗が1件でもある場合
    */
   async run() {
     console.log('='.repeat(60));
@@ -171,6 +185,7 @@ export class App {
     console.log('');
 
     const results = [];
+    const errors = [];
 
     for (const facilityConfig of this.config.facilities) {
       try {
@@ -178,12 +193,14 @@ export class App {
         results.push(result);
       } catch (error) {
         console.error(`施設処理エラー:`, error.message);
-        results.push({
+        const failureResult = {
           facilityCode: facilityConfig.code,
           facilityName: facilityConfig.name,
           error: error.message,
           success: false,
-        });
+        };
+        results.push(failureResult);
+        errors.push(error);
       }
 
       // レート制限対策: 1秒待機
@@ -206,6 +223,12 @@ export class App {
     console.log(`通知送信: ${notified}件`);
     console.log(`新規空き: ${totalNew}枠`);
     console.log('');
+
+    // fail-closed: 1件でも失敗があればエラーを投げる
+    if (errors.length > 0) {
+      const errorMessages = errors.map(e => e.message).join('; ');
+      throw new Error(`One or more facilities failed: ${errorMessages}`);
+    }
 
     return results;
   }

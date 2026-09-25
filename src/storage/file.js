@@ -35,21 +35,32 @@ export class FileStorage {
   /**
    * 前回の状態を読み込む
    * @param {string} key - 状態のキー
-   * @returns {Promise<Array>} 前回の空き状況
+   * @returns {Promise<Array|null>} 前回の空き状況（存在しない場合はnull）
+   * @throws {Error} ファイル読み込みエラーまたはJSON解析エラーの場合
    */
   async load(key) {
     const filePath = this.getFilePath(key);
 
+    // ファイルが存在しない場合はnull（初回実行）
     if (!existsSync(filePath)) {
-      return [];
+      return null;
     }
 
     try {
       const content = readFileSync(filePath, 'utf-8');
-      return JSON.parse(content);
+      
+      // JSON解析エラーはthrow（データ破損）
+      try {
+        return JSON.parse(content);
+      } catch (parseError) {
+        throw new Error(`Failed to parse state from file: ${parseError.message}`);
+      }
     } catch (error) {
-      console.error('Failed to load state from file:', error.message);
-      return [];
+      // ファイル読み込みエラーはthrow
+      if (error.message.startsWith('Failed to parse')) {
+        throw error;
+      }
+      throw new Error(`Failed to load state from file: ${error.message}`);
     }
   }
 

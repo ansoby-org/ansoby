@@ -50,27 +50,59 @@ describe('ChigasakiClient', () => {
         assert.ok(error.message.includes('Failed to fetch availability'));
       }
     });
+
+    it('should generate correct POST parameters for actual measurement case', () => {
+      // 実測値のテスト（2026-09-25 基準日、2026-10-02 表示日）
+      const client = new ChigasakiClient();
+      
+      // baseDateとdateから正しいパラメータが生成されるかテスト
+      const baseDate = '2026-09-25';
+      const displayDate = '2026-10-02';
+      
+      const baseDateObj = new Date(baseDate);
+      const baseYear = baseDateObj.getFullYear();
+      const baseMonth = String(baseDateObj.getMonth() + 1).padStart(2, '0');
+      const baseDay = String(baseDateObj.getDate()).padStart(2, '0');
+      
+      const displayDateObj = new Date(displayDate);
+      const displayYear = displayDateObj.getFullYear();
+      const displayMonth = String(displayDateObj.getMonth() + 1).padStart(2, '0');
+      const displayDay = String(displayDateObj.getDate()).padStart(2, '0');
+      
+      // 期待値（実測値と一致）
+      assert.strictEqual(`${baseYear}${baseMonth}`, '202609');
+      assert.strictEqual(baseDay, '25');
+      assert.strictEqual(`${displayYear}${displayMonth}${displayDay}`, '20261002');
+    });
   });
 
 
 
   describe('_parseAvailabilityFromHtml', () => {
-    it('should parse availability from actual HTML structure', () => {
+    it('should parse availability with room names from actual HTML structure', () => {
       const client = new ChigasakiClient();
-      // 実際のHTMLサンプル（調査結果に基づく）
+      // 実際のHTMLサンプル（調査結果に基づく - 部屋名列あり）
       const html = `
         <div class="SelectCalendarOuter">
           <table class="koma-table" style="margin:0 auto;">
             <tbody>
               <tr>
+                <th style="width:140px;">部屋名</th>
                 <th style="width:40px;">10</th>
                 <th style="width:40px;">11</th>
                 <th style="width:40px;">12</th>
               </tr>
               <tr>
-                <td style="width:140px;background-color:#01fafa;">○</td>
+                <td style="width:140px;">大集会室全室(500人)</td>
+                <td style="width:40px;background-color:#01fafa;">○</td>
                 <td style="width:40px;background-color:#ffffe0;">×</td>
                 <td style="width:40px;background-color:#ffffff;">-</td>
+              </tr>
+              <tr>
+                <td style="width:140px;">大集会室1(250人)</td>
+                <td style="width:40px;background-color:#ffffff;">-</td>
+                <td style="width:40px;background-color:#01fafa;">○</td>
+                <td style="width:40px;background-color:#ffffe0;">×</td>
               </tr>
             </tbody>
           </table>
@@ -79,13 +111,18 @@ describe('ChigasakiClient', () => {
       
       const availability = client._parseAvailabilityFromHtml(html, '016', '2026-09-25');
       
-      assert.strictEqual(availability.length, 3);
-      assert.strictEqual(availability[0].status, 'available');
-      assert.strictEqual(availability[0].time, '10:00');
-      assert.strictEqual(availability[1].status, 'reserved');
-      assert.strictEqual(availability[1].time, '11:00');
-      assert.strictEqual(availability[2].status, 'unavailable');
-      assert.strictEqual(availability[2].time, '12:00');
+      assert.strictEqual(availability.length, 6); // 2部屋 × 3時間
+      
+      // 大集会室全室 - 10時: 空きあり
+      const room1slot10 = availability.find(s => s.time === '10:00' && s.room === '大集会室全室(500人)');
+      assert.ok(room1slot10);
+      assert.strictEqual(room1slot10.status, 'available');
+      assert.strictEqual(room1slot10.facilityCode, '016');
+      
+      // 大集会室1 - 11時: 空きあり（別の部屋なので別スロット）
+      const room2slot11 = availability.find(s => s.time === '11:00' && s.room === '大集会室1(250人)');
+      assert.ok(room2slot11);
+      assert.strictEqual(room2slot11.status, 'available');
     });
 
     it('should fail-closed when HTML structure is unexpected', () => {

@@ -58,6 +58,25 @@ describe('getDiff', () => {
     assert.strictEqual(removed.length, 1);
     assert.strictEqual(removed[0].time, '10:00');
   });
+
+  it('should distinguish different rooms at same time', () => {
+    const previous = [
+      { facilityCode: '016', room: '大集会室全室(500人)', date: '2026-09-25', time: '10:00', status: 'available' },
+    ];
+
+    const current = [
+      { facilityCode: '016', room: '大集会室全室(500人)', date: '2026-09-25', time: '10:00', status: 'available' },
+      { facilityCode: '016', room: '大集会室1(250人)', date: '2026-09-25', time: '10:00', status: 'available' },
+    ];
+
+    const { added, removed } = getDiff(previous, current);
+
+    // 別の部屋なので新規空きとして検出される
+    assert.strictEqual(added.length, 1);
+    assert.strictEqual(added[0].room, '大集会室1(250人)');
+    assert.strictEqual(added[0].time, '10:00');
+    assert.strictEqual(removed.length, 0);
+  });
 });
 
 describe('getNewAvailabilities', () => {
