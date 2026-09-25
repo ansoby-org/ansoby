@@ -68,16 +68,31 @@ npm test
 
 [LINE Developers Console](https://developers.line.biz/console/) でMessaging APIチャネルを作成し、チャネルアクセストークンと通知先IDを取得
 
-### 2. 環境変数の設定
+### 2. Redis設定（オプション）
 
 ```bash
-export LINE_CHANNEL_ACCESS_TOKEN=your_channel_access_token_here
-export LINE_GROUP_ID=your_group_id_here
+# Redisを使用する場合
+export REDIS_URL=redis://localhost:6379
+
+# Redisなしでも動作（ファイルベース）
 ```
 
-### 3. 監視の実行
+### 3. 設定ファイルの作成
 
 ```bash
+cp config.example.json config.json
+# config.jsonを編集してトークンと施設設定を記入
+```
+
+### 4. 監視の実行
+
+```bash
+# 設定ファイルベース（推奨）
+npm run run ./config.json
+
+# または環境変数ベース（シンプル版）
+export LINE_CHANNEL_ACCESS_TOKEN=your_token
+export LINE_GROUP_ID=your_group_id
 npm run monitor
 ```
 

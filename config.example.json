@@ -1,0 +1,31 @@
+{
+  "client": {
+    "baseUrl": "https://k7.p-kashikan.jp/chigasaki-city",
+    "timeout": 30000
+  },
+  "storage": {
+    "redis": null,
+    "keyPrefix": "ansoby:chigasaki:"
+  },
+  "line": {
+    "channelAccessToken": "YOUR_CHANNEL_ACCESS_TOKEN",
+    "groupId": "YOUR_GROUP_ID",
+    "userId": null
+  },
+  "facilities": [
+    {
+      "code": "016",
+      "name": "茅ヶ崎市コミュニティホール",
+      "date": "2026-09-25",
+      "notifyConditions": {
+        "dateFrom": null,
+        "dateTo": null,
+        "timeFrom": "18:00",
+        "timeTo": "22:00",
+        "daysOfWeek": [0, 6],
+        "header": null,
+        "footer": "予約はこちら: https://k7.p-kashikan.jp/chigasaki-city/"
+      }
+    }
+  ]
+}

@@ -7,7 +7,8 @@
   "scripts": {
     "test": "node --test tests/**/*.test.js",
     "dev": "node src/index.js",
-    "monitor": "node src/cli/monitor.js"
+    "monitor": "node src/cli/monitor.js",
+    "run": "node src/cli/run.js"
   },
   "keywords": [
     "public-facility",
@@ -16,6 +17,8 @@
   ],
   "author": "",
   "license": "MIT",
-  "dependencies": {},
+  "dependencies": {
+    "redis": "^4.6.0"
+  },
   "devDependencies": {}
 }
