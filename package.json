@@ -1,0 +1,23 @@
+{
+  "name": "ansoby",
+  "version": "0.1.0",
+  "description": "Public facility reservation orchestrator",
+  "type": "module",
+  "main": "src/index.js",
+  "scripts": {
+    "test": "node --test tests/**/*.test.js",
+    "dev": "node src/index.js",
+    "run": "node src/cli/run.js"
+  },
+  "keywords": [
+    "public-facility",
+    "reservation",
+    "orchestrator"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "redis": "^4.6.0"
+  },
+  "devDependencies": {}
+}

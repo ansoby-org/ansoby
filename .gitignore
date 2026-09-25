@@ -1,5 +1,17 @@
 # macOS
 .DS_Store
+node_modules/
+*.log
+.env
+.env.local
+coverage/
+dist/
+build/
+.cache/
+.availability-state.json
+.test-availability-state.json
+.ansoby-state/
+config.json
 .AppleDouble
 .LSOverride
 
