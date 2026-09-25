@@ -7,12 +7,20 @@
 ansobyは、複数の自治体の公共施設予約システムを統合的に利用するためのオーケストレーターです。
 各自治体の異なる予約システムを統一されたインターフェースで操作できます。
 
+### 主な機能
+
+- **空き状況取得**: 実サイトのHTMLを解析して空き状況を取得
+- **差分検出**: 前回取得時との差分を自動検出
+- **LINE通知**: 新規の空きが見つかった場合にLINEで自動通知
+- **定期監視**: cronやsystemd timerで定期実行可能
+
 ## サポート自治体
 
 ### 茅ヶ崎市
 - **システム**: p-kashikan (新システム)
-- **対応機能**: 施設一覧、空き状況取得、施設詳細
+- **対応機能**: 空き状況取得、差分検出、LINE通知
 - **ドキュメント**: [docs/CHIGASAKI.md](docs/CHIGASAKI.md)
+- **監視機能**: [docs/MONITOR.md](docs/MONITOR.md)
 
 ## インストール
 
@@ -54,9 +62,44 @@ npm run dev
 npm test
 ```
 
+## クイックスタート
+
+### 1. LINE Notifyトークンの取得
+
+https://notify-bot.line.me/ でトークンを発行
+
+### 2. 環境変数の設定
+
+```bash
+export LINE_NOTIFY_TOKEN=your_token_here
+```
+
+### 3. 監視の実行
+
+```bash
+npm run monitor
+```
+
 ## 使用例
 
-詳細な使用例は `examples/` ディレクトリを参照してください。
+### 空き状況の監視とLINE通知
+
+```bash
+# デフォルト設定で監視
+npm run monitor
+
+# 施設と日付を指定
+npm run monitor -- --facility 016 --date 2026-09-25 --days 14
+```
+
+### 定期実行（cron）
+
+```bash
+# 10分おきに実行
+*/10 * * * * cd /path/to/ansoby && npm run monitor >> /path/to/logs/monitor.log 2>&1
+```
+
+詳細は [docs/MONITOR.md](docs/MONITOR.md) を参照してください。
 
 ### CLIツールの使用
 
@@ -65,10 +108,7 @@ npm test
 node examples/fetch-availability.js facilities
 
 # 特定の施設の空き状況を取得
-node examples/fetch-availability.js availability <施設ID>
-
-# 施設の詳細情報を取得
-node examples/fetch-availability.js details <施設ID>
+node examples/fetch-availability.js availability <施設コード>
 ```
 
 ## プロジェクト構造
